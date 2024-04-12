@@ -15,12 +15,13 @@
  */
 package org.jmolecules.annotation.processor;
 
+import io.toolisticon.aptk.tools.MessagerUtils;
 import io.toolisticon.cute.Cute;
 import io.toolisticon.cute.CuteApi.BlackBoxTestInterface;
 import io.toolisticon.cute.CuteApi.BlackBoxTestSourceFilesAndProcessorInterface;
 import io.toolisticon.cute.CuteApi.CompilerTestExpectAndThatInterface;
 import io.toolisticon.cute.CuteApi.DoCustomAssertions;
-
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
@@ -31,139 +32,124 @@ import org.junit.jupiter.api.Test;
  */
 class JMoleculesProcessorUnitTests {
 
-	BlackBoxTestSourceFilesAndProcessorInterface baseBlackBoxSetup = Cute.blackBoxTest()
-			.given()
-			.processor(JMoleculesProcessor.class);
+	BlackBoxTestSourceFilesAndProcessorInterface baseBlackBoxSetup = Cute.blackBoxTest().given().processor(JMoleculesProcessor.class);
 
-	@Test // GH-230
+	@BeforeAll
+	public static void init() {
+		MessagerUtils.setPrintMessageCodes(true);
+	}
+
+
+	@Test
+		// GH-230
 	void detectsInvalidAggregateRootReferenceInImplementingAggregate() {
 
 		String source = getSourceFile("MyAggregateRoot");
 
-		assertFailed(source)
-				.andThat().compilerMessage().ofKindError().atLine(8).atSource(source)
-				.contains("Invalid aggregate root reference!")
-				.executeTest();
+		assertFailed(source).andThat().compilerMessage().ofKindError().atLine(8).atSource(source).contains(JMoleculesProcessorCompilerMessages.INVALID_AGGREGATE_ROOT_REFERENCE.getCode()).executeTest();
 	}
 
-	@Test // GH-230
+	@Test
+		// GH-230
 	void detectsInvalidAggregateRootReferenceInImplementingAggregateInNestedClass() {
 
 		String source = getSourceFile("MyAggregateRootNested");
 
-		assertFailed(source)
-				.andThat().compilerMessage().ofKindError().atLine(10).atSource(source)
-				.contains("Invalid aggregate root reference!")
-				.executeTest();
+		assertFailed(source).andThat().compilerMessage().ofKindError().atLine(10).atSource(source).contains(JMoleculesProcessorCompilerMessages.INVALID_AGGREGATE_ROOT_REFERENCE.getCode()).executeTest();
 	}
 
-	@Test // GH-230
+	@Test
+		// GH-230
 	void detectsInvalidAggregateRootReferenceInImplementingEntity() {
 
 		String source = getSourceFile("MyEntity");
 
-		assertFailed(source)
-				.andThat().compilerMessage().ofKindError().atLine(10).atSource(source)
-				.contains("Invalid aggregate root reference!")
-				.executeTest();
+		assertFailed(source).andThat().compilerMessage().ofKindError().atLine(10).atSource(source).contains(JMoleculesProcessorCompilerMessages.INVALID_AGGREGATE_ROOT_REFERENCE.getCode()).executeTest();
 	}
 
-	@Test // GH-230
+	@Test
+		// GH-230
 	void detectsInvalidAggregateRootReferenceInAnnotatedAggregate() {
 
 		String source = getSourceFile("AnnotatedAggregateRoot");
 
-		assertFailed(source)
-				.andThat().compilerMessage().ofKindError().atLine(10).atSource(source)
-				.contains("Invalid aggregate root reference!")
-				.executeTest();
+		assertFailed(source).andThat().compilerMessage().ofKindError().atLine(10).atSource(source).contains(JMoleculesProcessorCompilerMessages.INVALID_AGGREGATE_ROOT_REFERENCE.getCode()).executeTest();
 	}
 
-	@Test // GH-230
+	@Test
+		// GH-230
 	void detectsMissingIdentifierInAnnotatedAggregate() {
 
 		String source = getSourceFile("AnnotatedAggregateRoot");
 
-		assertFailed(source)
-				.andThat().compilerMessage().ofKindError().atLine(9).atSource(source).contains("identity")
-				.executeTest();
+		assertFailed(source).andThat().compilerMessage().ofKindError().atLine(9).atSource(source).contains(JMoleculesProcessorCompilerMessages.IDENTITY_DECLARATION_ON_FILED_OR_METHOD_NEEDED.getCode()).executeTest();
 	}
 
-	@Test // GH-230
+	@Test
+		// GH-230
 	void passesAnnotatedAggregateRootWithFieldIdentity() {
 		assertSucceded(getSourceFile("valid/WithMethodIdentity"));
 	}
 
-	@Test // GH-230
+	@Test
+		// GH-230
 	void passesAnnotatedAggregateRootWithMethodIdentity() {
 		assertSucceded(getSourceFile("valid/WithFieldIdentity"));
 	}
 
-	@Test // GH-230
+	@Test
+		// GH-230
 	void rejectsReferencesToIdentifiablesFromValueObject() {
 
 		String source = getSourceFile("MyValueObject");
 
-		assertFailed(source)
-				.andThat().compilerMessage().ofKindError().atLine(7).atSource(source).contains("identifiables")
-				.andThat().compilerMessage().ofKindError().atLine(8).atSource(source).contains("identifiables")
-				.andThat().compilerMessage().ofKindError().atLine(9).atSource(source).contains("identifiables")
-				.executeTest();
+		assertFailed(source).andThat().compilerMessage().ofKindError().atLine(7).atSource(source).contains(JMoleculesProcessorCompilerMessages.VALUE_OBJECT_MUST_NOT_REFER_IDENTIFIABLES.getCode()).andThat().compilerMessage().ofKindError().atLine(8).atSource(source).contains(JMoleculesProcessorCompilerMessages.VALUE_OBJECT_MUST_NOT_REFER_IDENTIFIABLES.getCode()).andThat().compilerMessage().ofKindError().atLine(9).atSource(source).contains(JMoleculesProcessorCompilerMessages.VALUE_OBJECT_MUST_NOT_REFER_IDENTIFIABLES.getCode()).executeTest();
 	}
 
-	@Test // GH-230
+	@Test
+		// GH-230
 	void rejectsReferencesToIdentifiablesFromAnnotatedValueObject() {
 
 		String source = getSourceFile("AnnotatedValueObject");
 
-		assertFailed(source)
-				.andThat().compilerMessage().ofKindError().atLine(8).atSource(source).contains("identifiables")
-				.andThat().compilerMessage().ofKindError().atLine(9).atSource(source).contains("identifiables")
-				.andThat().compilerMessage().ofKindError().atLine(10).atSource(source).contains("identifiables")
-				.executeTest();
+		assertFailed(source).andThat().compilerMessage().ofKindError().atLine(8).atSource(source).contains(JMoleculesProcessorCompilerMessages.VALUE_OBJECT_MUST_NOT_REFER_IDENTIFIABLES.getCode()).andThat().compilerMessage().ofKindError().atLine(9).atSource(source).contains(JMoleculesProcessorCompilerMessages.VALUE_OBJECT_MUST_NOT_REFER_IDENTIFIABLES.getCode()).andThat().compilerMessage().ofKindError().atLine(10).atSource(source).contains(JMoleculesProcessorCompilerMessages.VALUE_OBJECT_MUST_NOT_REFER_IDENTIFIABLES.getCode()).executeTest();
 	}
 
-	@Test // GH-230
+	@Test
+		// GH-230
 	void rejectsReferencesToIdentifiablesFromRecordValueObject() {
 
 		String source = getSourceFile("MyRecord");
 
-		assertFailed(source)
-				.andThat().compilerMessage().ofKindError().atLine(5).atColumn(26).atSource(source).contains("identifiables")
-				.executeTest();
+		assertFailed(source).andThat().compilerMessage().ofKindError().atLine(5).atColumn(26).atSource(source).contains(JMoleculesProcessorCompilerMessages.VALUE_OBJECT_MUST_NOT_REFER_IDENTIFIABLES.getCode()).executeTest();
 	}
 
-	@Test // GH-230
+	@Test
+		// GH-230
 	void passesValidValueObject() {
 		assertSucceded(getSourceFile("valid/ValidValueObject"));
 		assertSucceded(getSourceFile("valid/ValidAnnotatedValueObject"));
 	}
 
-	@Test // GH-230
+	@Test
+		// GH-230
 	void passesValidIdentifier() {
 		assertSucceded(getSourceFile("valid/ValidIdentifier"));
 	}
 
 	private static CompilerTestExpectAndThatInterface assertFailed(String source) {
 
-		return assertSourceProcessed(source)
-				.thenExpectThat().compilationFails();
+		return assertSourceProcessed(source).thenExpectThat().compilationFails();
 	}
 
 	private static DoCustomAssertions assertSucceded(String source) {
 
-		return assertSourceProcessed(source)
-				.thenExpectThat().compilationSucceeds()
-				.executeTest();
+		return assertSourceProcessed(source).thenExpectThat().compilationSucceeds().executeTest();
 	}
 
 	private static BlackBoxTestInterface assertSourceProcessed(String source) {
 
-		return Cute.blackBoxTest()
-				.given()
-				.processor(JMoleculesProcessor.class)
-				.andSourceFiles(source)
-				.whenCompiled();
+		return Cute.blackBoxTest().given().processor(JMoleculesProcessor.class).andSourceFiles(source).whenCompiled();
 	}
 
 	private static String getSourceFile(String name) {

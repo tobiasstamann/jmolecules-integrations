@@ -15,22 +15,17 @@
  */
 package org.jmolecules.annotation.processor;
 
+import com.google.auto.service.AutoService;
 import io.toolisticon.aptk.common.ToolingProvider;
+import io.toolisticon.aptk.compilermessage.api.DeclareCompilerMessage;
+import io.toolisticon.aptk.compilermessage.api.DeclareCompilerMessageCodePrefix;
 import io.toolisticon.aptk.tools.TypeMirrorWrapper;
+import io.toolisticon.aptk.tools.corematcher.ValidationMessage;
 import io.toolisticon.aptk.tools.fluentfilter.FluentElementFilter;
 import io.toolisticon.aptk.tools.wrapper.AnnotationMirrorWrapper;
 import io.toolisticon.aptk.tools.wrapper.ElementWrapper;
 import io.toolisticon.aptk.tools.wrapper.PackageElementWrapper;
 import io.toolisticon.aptk.tools.wrapper.TypeElementWrapper;
-
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Set;
-import java.util.function.Predicate;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import javax.annotation.processing.Completion;
 import javax.annotation.processing.ProcessingEnvironment;
@@ -42,6 +37,10 @@ import javax.lang.model.element.Element;
 import javax.lang.model.element.ExecutableElement;
 import javax.lang.model.element.TypeElement;
 import javax.lang.model.type.TypeMirror;
+import java.util.*;
+import java.util.function.Predicate;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 /**
  * An APT {@link Processor} implementation to verify DDD rules.
@@ -49,6 +48,8 @@ import javax.lang.model.type.TypeMirror;
  * @author Oliver Drotbohm
  * @author Tobias Stamann
  */
+@AutoService(Processor.class)
+@DeclareCompilerMessageCodePrefix("JM_APT")
 public class JMoleculesProcessor implements Processor {
 
 	private final List<Verification> verifications = new ArrayList<>();
@@ -86,8 +87,7 @@ public class JMoleculesProcessor implements Processor {
 	 * @see javax.annotation.processing.Processor#getCompletions(javax.lang.model.element.Element, javax.lang.model.element.AnnotationMirror, javax.lang.model.element.ExecutableElement, java.lang.String)
 	 */
 	@Override
-	public Iterable<? extends Completion> getCompletions(Element element, AnnotationMirror annotation,
-			ExecutableElement member, String userText) {
+	public Iterable<? extends Completion> getCompletions(Element element, AnnotationMirror annotation, ExecutableElement member, String userText) {
 		return Collections.emptyList();
 	}
 
@@ -112,15 +112,11 @@ public class JMoleculesProcessor implements Processor {
 
 			// First collect all packages
 
-			Set<ElementWrapper<?>> elements = roundEnv.getRootElements().stream()
-					.map(ElementWrapper::wrap)
-					.collect(Collectors.toSet());
+			Set<ElementWrapper<?>> elements = roundEnv.getRootElements().stream().map(ElementWrapper::wrap).collect(Collectors.toSet());
 
 			for (ElementWrapper<?> rootElement : elements) {
 
-				PackageElementWrapper packageElementWrapper = rootElement.unwrap() instanceof TypeElement
-						? rootElement.getPackage()
-						: PackageElementWrapper.toPackageElement(rootElement);
+				PackageElementWrapper packageElementWrapper = rootElement.unwrap() instanceof TypeElement ? rootElement.getPackage() : PackageElementWrapper.toPackageElement(rootElement);
 
 				packagesToCheck.add(packageElementWrapper.getQualifiedName());
 			}
@@ -129,9 +125,7 @@ public class JMoleculesProcessor implements Processor {
 
 			// In processing over phase do the checks for all types in collected packages
 
-			packagesToCheck.stream()
-					.flatMap(fqn -> getTypesInPackage(fqn))
-					.forEach(it -> verifications.stream().forEach(verification -> verification.verify(it)));
+			packagesToCheck.stream().flatMap(fqn -> getTypesInPackage(fqn)).forEach(it -> verifications.stream().forEach(verification -> verification.verify(it)));
 		}
 
 		return true;
@@ -144,14 +138,7 @@ public class JMoleculesProcessor implements Processor {
 		// java/util/stream/Stream. Method 'java.util.stream.Stream empty()' at index 267 is CONSTANT_MethodRef and should
 		// be CONSTANT_InterfaceMethodRef
 
-		List<TypeElement> result = PackageElementWrapper.getByFqn(name)
-				.map(PackageElementWrapper::filterFlattenedEnclosedElementTree)
-				.map(FluentElementFilter::getResult)
-				.orElseGet(Collections::emptyList)
-				.stream()
-				.filter(TypeElement.class::isInstance)
-				.map(TypeElement.class::cast)
-				.collect(Collectors.toList());
+		List<TypeElement> result = PackageElementWrapper.getByFqn(name).map(PackageElementWrapper::filterFlattenedEnclosedElementTree).map(FluentElementFilter::getResult).orElseGet(Collections::emptyList).stream().filter(TypeElement.class::isInstance).map(TypeElement.class::cast).collect(Collectors.toList());
 
 		return result.stream().map(TypeElementWrapper::wrap);
 	}
@@ -162,9 +149,7 @@ public class JMoleculesProcessor implements Processor {
 
 	private static boolean hasMetaAnnotation(TypeMirrorWrapper element, TypeMirror mirror) {
 
-		return TypeElementWrapper.getByTypeMirror(element.unwrap())
-				.map(it -> hasMetaAnnotation(it, mirror))
-				.orElse(false);
+		return TypeElementWrapper.getByTypeMirror(element.unwrap()).map(it -> hasMetaAnnotation(it, mirror)).orElse(false);
 	}
 
 	private static boolean hasMetaAnnotation(ElementWrapper<? extends Element> element, TypeMirror mirror) {
@@ -177,9 +162,7 @@ public class JMoleculesProcessor implements Processor {
 			return true;
 		}
 
-		return element.getAnnotationMirrors().stream()
-				.filter(JMoleculesProcessor::shouldTraverse)
-				.anyMatch(it -> hasMetaAnnotation(it.asTypeMirror().getTypeElement().get(), fqn));
+		return element.getAnnotationMirrors().stream().filter(JMoleculesProcessor::shouldTraverse).anyMatch(it -> hasMetaAnnotation(it.asTypeMirror().getTypeElement().get(), fqn));
 	}
 
 	private static boolean shouldTraverse(AnnotationMirrorWrapper annotation) {
@@ -215,38 +198,31 @@ public class JMoleculesProcessor implements Processor {
 			return getTypeMirror(PACKAGE + ".types.AggregateRoot") != null;
 		}
 
+		@DeclareCompilerMessage(enumValueName = "INVALID_AGGREGATE_ROOT_REFERENCE", message = "Invalid aggregate root reference! Use identifier reference or Association instead!")
+		@DeclareCompilerMessage(enumValueName = "IDENTITY_DECLARATION_ON_FILED_OR_METHOD_NEEDED", message = "${0} needs identity declaration on either field or method!")
+		@DeclareCompilerMessage(enumValueName = "VALUE_OBJECT_MUST_NOT_REFER_IDENTIFIABLES", message = "Value object or identifier must not refer to identifiables!")
 		public void verify(TypeElementWrapper element) {
 
 			if (isIdentifiable(element)) {
 
-				verifyFields(element, it -> !isAggregate(it),
-						"Invalid aggregate root reference! Use identifier reference or Association instead!");
+				verifyFields(element, it -> !isAggregate(it), JMoleculesProcessorCompilerMessages.INVALID_AGGREGATE_ROOT_REFERENCE);
 			}
 
 			if (isAnnotatedIdentifiable(element.asType())) {
 
-				element.validate().asError()
-						.withCustomMessage("${0} needs identity declaration on either field or method!",
-								element.asType().getSimpleName())
-						.check(__ -> hasIdentityMethodOrField(element))
-						.validateAndIssueMessages();
+				element.validate().asError().withCustomMessage(JMoleculesProcessorCompilerMessages.IDENTITY_DECLARATION_ON_FILED_OR_METHOD_NEEDED, element.asType().getSimpleName()).check(__ -> hasIdentityMethodOrField(element)).validateAndIssueMessages();
 			}
 
 			if (isValueObjectOrIdentifier(element)) {
-				verifyFields(element, it -> !isIdentifiable(it),
-						"Value object or identifier must not refer to identifiables!");
+				verifyFields(element, it -> !isIdentifiable(it), JMoleculesProcessorCompilerMessages.VALUE_OBJECT_MUST_NOT_REFER_IDENTIFIABLES);
 			}
 		}
 
-		private static void verifyFields(TypeElementWrapper element, Predicate<TypeMirrorWrapper> check,
-				String message, Object... args) {
+		private static void verifyFields(TypeElementWrapper element, Predicate<TypeMirrorWrapper> check, ValidationMessage message, Object... args) {
 
 			element.getFields().forEach(it -> {
 
-				it.validate().asError()
-						.withCustomMessage(message, args)
-						.check(inner -> check.test(inner.asType()))
-						.validateAndIssueMessages();
+				it.validate().asError().withCustomMessage(message, args).check(inner -> check.test(inner.asType())).validateAndIssueMessages();
 			});
 		}
 
@@ -254,14 +230,12 @@ public class JMoleculesProcessor implements Processor {
 			return hasMethodOrFieldMatching(element, it -> hasMetaAnnotation(it, IDENTITY_TYPE_NAME));
 		}
 
-		private static boolean hasMethodOrFieldMatching(TypeElementWrapper element,
-				Predicate<ElementWrapper<? extends Element>> predicate) {
+		private static boolean hasMethodOrFieldMatching(TypeElementWrapper element, Predicate<ElementWrapper<? extends Element>> predicate) {
 
 			List<? extends ElementWrapper<? extends Element>> fields = element.getFields();
 			List<? extends ElementWrapper<? extends Element>> methods = element.getMethods();
 
-			return Stream.concat(fields.stream(), methods.stream())
-					.anyMatch(predicate);
+			return Stream.concat(fields.stream(), methods.stream()).anyMatch(predicate);
 		}
 
 		private boolean isValueObjectOrIdentifier(TypeElementWrapper mirror) {
@@ -273,20 +247,17 @@ public class JMoleculesProcessor implements Processor {
 
 		private boolean isValueObject(TypeMirrorWrapper mirror) {
 
-			return mirror.isAssignableTo(VALUE_OBJECT_TYPE)
-					|| hasMetaAnnotation(mirror, VALUE_OBJECT_ANNOTATION);
+			return mirror.isAssignableTo(VALUE_OBJECT_TYPE) || hasMetaAnnotation(mirror, VALUE_OBJECT_ANNOTATION);
 		}
 
 		private boolean isAggregate(TypeMirrorWrapper mirror) {
 
-			return mirror.isAssignableTo(AGGREGATE_TYPE)
-					|| hasMetaAnnotation(mirror, AGGREGATE_ANNOTATION);
+			return mirror.isAssignableTo(AGGREGATE_TYPE) || hasMetaAnnotation(mirror, AGGREGATE_ANNOTATION);
 		}
 
 		private boolean isIdentifiable(TypeMirrorWrapper mirror) {
 
-			return mirror.isAssignableTo(IDENTIFIABLE_TYPE)
-					|| isAnnotatedIdentifiable(mirror);
+			return mirror.isAssignableTo(IDENTIFIABLE_TYPE) || isAnnotatedIdentifiable(mirror);
 		}
 
 		private boolean isIdentifiable(TypeElementWrapper element) {
@@ -295,8 +266,7 @@ public class JMoleculesProcessor implements Processor {
 
 		private boolean isAnnotatedIdentifiable(TypeMirrorWrapper mirror) {
 
-			return hasMetaAnnotation(mirror, ENTITY_ANNOTATION)
-					|| hasMetaAnnotation(mirror, AGGREGATE_ANNOTATION);
+			return hasMetaAnnotation(mirror, ENTITY_ANNOTATION) || hasMetaAnnotation(mirror, AGGREGATE_ANNOTATION);
 		}
 	}
 }
